@@ -49,7 +49,16 @@ def sendEmail(receiver_email: str, subject: str, message: Message):
     server.quit()
 
 def sendNewUserEmail(receiver_email: str, user_password: str):
-    sendEmail(receiver_email, 'Welcome to Rewards Points!', NEW_USER.format('{user_password}', user_password))
+    sendEmail(
+        receiver_email,
+        "Welcome to Rewards Points!",
+        NEW_USER.format("{user_password}", user_password),
+    )
+
 
 def sendForgotPasswordEmail(receiver_email: str, user_password: str):
-    sendEmail(receiver_email, 'Your Rewards Points Password', FORGOT_PASSWORD.format('{user_password}', user_password))
+    sendEmail(
+        receiver_email,
+        "Your Rewards Points Password",
+        FORGOT_PASSWORD.format("{user_password}", user_password),
+    )

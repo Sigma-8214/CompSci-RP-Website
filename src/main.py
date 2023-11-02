@@ -381,11 +381,12 @@ def student_view():
 # run the app
 if __name__ == "__main__":
     with app.app_context():
-        print('Creating Database...')
-        # TODO: Uncomment this line in production
-        db.drop_all()
-        db.create_all()
-        # TODO: Comment this loop in production
-        # for i in range(3):
-        #     add_student()
+        if debug:
+            for i in range(3):
+                add_student()
+        else:
+            print('Creating Database...')
+            db.drop_all()
+            db.create_all()
+            
     app.run(host=host, port=port, debug=debug)
