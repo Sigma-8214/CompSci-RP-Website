@@ -2,3 +2,5 @@
 teacher_password = ''
 # Key used to encrypt cookies
 secret_key = b''
+# Path to the database
+db_address = 'sqlite:///users.db'

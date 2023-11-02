@@ -1,17 +1,16 @@
-from flask import Flask, redirect, url_for, request, render_template, session, flash
-from flask_sqlalchemy import SQLAlchemy
 import random
 
-from email_helper.send_mail import sendEmail
-from config import secret_key, teacher_password
+from flask import Flask, redirect, url_for, request, render_template, session, flash
+from flask_sqlalchemy import SQLAlchemy
 
-# create the flask app object
+from send_mail import sendEmail
+from config import secret_key, teacher_password, db_address
+
 app = Flask(__name__)
-# set the secret key for the session
 app.secret_key = secret_key
 
 # settings for sql database
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = db_address
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # create the database object
