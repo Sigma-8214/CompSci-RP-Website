@@ -1,13 +1,14 @@
 from flask import Flask, redirect, url_for, request, render_template, session, flash
 from flask_sqlalchemy import SQLAlchemy
 import random
-# custom package import
+
 from email_helper.send_mail import sendEmail
+from config import secret_key, teacher_password
 
 # create the flask app object
 app = Flask(__name__)
 # set the secret key for the session
-app.secret_key = "hello"
+app.secret_key = secret_key
 
 # settings for sql database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
@@ -16,7 +17,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # create the database object
 db = SQLAlchemy(app)
 
-teacherPassword = '314159'
 
 class Student(db.Model):
     # create columns
@@ -50,7 +50,6 @@ class Student(db.Model):
         # set the password
         self.password = random_password
 
-
         self.rp = 0
 
     def __repr__(self):
@@ -79,24 +78,24 @@ def login():
         if request.method == "POST":
             # get the form data
             password = request.form["password"]
-            
+
             # prompt password again if it's not a number
             if not password.isdigit():
                 flash("Please enter a number!")
                 return redirect(url_for("login"))
-            
+
             # prompt password again if it's not 6 digits
             if len(password) != 6:
                 flash("Please enter a 6-digit number!")
                 return redirect(url_for("login"))
-            
+
             # check if the teacher is trying to log in
-            if password == teacherPassword:
+            if password == teacher_password:
                 # log the teacher in
                 session['teacher'] = 'teacher'
                 flash("Logged in!")
                 return redirect(url_for("teacher"))
-            
+
             # if password found, log the user in
             found_user = Student.query.filter_by(password=password).first()
             if found_user:
@@ -105,7 +104,7 @@ def login():
                 session['student'] = found_user.name
                 # flash("Logged in!")
                 return redirect(url_for("student"))
-            
+
             # if password not found, display an error message
             else:
                 flash("Password not found!")
@@ -113,7 +112,7 @@ def login():
         else:
             # user is not trying to log in -> display the login page
             return render_template("login.html")
-    
+
 
 # route for the register page
 # *to be used only by students
@@ -160,8 +159,8 @@ def register():
             print('added to database')
 
             # send the new student's password to their email
-            sendEmail(reciever_email=email_in, user_password=new_student.password, forgot_password=False)
-
+            sendEmail(reciever_email=email_in,
+                      user_password=new_student.password, forgot_password=False)
 
             flash("Registered! Your password has been sent to your school email.")
             print('redirecting to login page')
@@ -172,6 +171,7 @@ def register():
             # display the register page
             return render_template("register.html")
 
+
 @app.route("/logout")
 def logout():
     # first check if the user is logged in
@@ -180,13 +180,13 @@ def logout():
         session.pop('student', None)
         flash("Logged out!")
         return redirect(url_for("login"))
-    
+
     elif 'teacher' in session:
         # log the teacher out
         session.pop('teacher', None)
         flash("Logged out!")
         return redirect(url_for("login"))
-    
+
     else:
         # user is not logged in
         flash("You are not logged in!")
@@ -200,9 +200,10 @@ def student():
     # first check if the student is logged in
     if 'student' in session:
         # if logged in, display the student's info
-        found_student = Student.query.filter_by(name=session['student']).first()
+        found_student = Student.query.filter_by(
+            name=session['student']).first()
         return render_template("student.html", student=found_student, random_tail_length=random.randint(1, 10))
-    
+
     else:
         # user is not logged in -> login page
         flash("You are not logged in!")
@@ -226,76 +227,82 @@ def teacher():
                 str_password = "studentpassword" + str(i)
                 str_rp = "studentrp" + str(i)
 
-
                 id_input = request.form[str_id]
 
-
                 name_input = request.form[str_name]
-
 
                 try:
                     period_input = int(request.form[str_period])
                 except:
                     # someone put an "e" in the period input (we don't know how to prevent them from doing it)
-                    flash(f"Please enter a valid period number for {name_input} (id: {id_input})")
+                    flash(
+                        f"Please enter a valid period number for {name_input} (id: {id_input})")
                     return redirect(url_for("teacher"))
-                
+
                 # make sure period is a number between 1 and 8, inclusive
                 if period_input < 1 or period_input > 8:
-                    flash(f"Please enter a valid period number for {name_input} (id: {id_input})")
+                    flash(
+                        f"Please enter a valid period number for {name_input} (id: {id_input})")
                     return redirect(url_for("teacher"))
-                
 
                 email_input = request.form[str_email]
 
                 # first check if the email has been changed/edited
                 if email_input != Student.query.filter_by(_id=id_input).first().email:
                     # make sure email is unique
-                    emails_found = Student.query.filter_by(email=email_input).first()
-                    if emails_found and emails_found._id != id_input: # also making sure the matching email is not the same student
-                        flash(f"The email you're trying to change for {name_input} (id: {id_input}) is already taken by {emails_found.name} (id: {emails_found._id})")
+                    emails_found = Student.query.filter_by(
+                        email=email_input).first()
+                    # also making sure the matching email is not the same student
+                    if emails_found and emails_found._id != id_input:
+                        flash(
+                            f"The email you're trying to change for {name_input} (id: {id_input}) is already taken by {emails_found.name} (id: {emails_found._id})")
                         return redirect(url_for("teacher"))
-                    
+
                     # make sure email is valid
                     # for now, just checking if it's empty
                     if email_input == "":
-                        flash(f"Please enter a valid email for {name_input} (id: {id_input})")
+                        flash(
+                            f"Please enter a valid email for {name_input} (id: {id_input})")
                         return redirect(url_for("teacher"))
-                    
 
                 password_input = request.form[str_password]
                 # LOGIC FOR VALIDATING NEW PASSWORD:
                 # 1. check if the password has been changed/edited
                 if password_input != Student.query.filter_by(_id=id_input).first().password:
-                # 2. make sure password is made up of only numbers
+                    # 2. make sure password is made up of only numbers
                     if not password_input.isdigit():
-                        flash(f"Please enter a valid password for {name_input} (id: {id_input})")
+                        flash(
+                            f"Please enter a valid password for {name_input} (id: {id_input})")
                         return redirect(url_for("teacher"))
                 # 3. remove leading zeroes
                     password_input = str(int(password_input))
                 # 4. make sure password is 6 digits or less
                     if len(password_input) > 6:
-                        flash(f"Please enter a valid password for {name_input} (id: {id_input})")
+                        flash(
+                            f"Please enter a valid password for {name_input} (id: {id_input})")
                         return redirect(url_for("teacher"))
                 # 4a. if it's less than 6 digits, add leading zeroes
                     if len(password_input) < 6:
                         password_input = password_input.zfill(6)
                 # 5. make sure password is unique (doesn't already belong to another student)
-                    password_found = Student.query.filter_by(password=password_input).first()
-                    if password_found and password_found._id != id_input: # also making sure the matching password is not the same student
-                        flash(f"The password you're trying to change for {name_input} (id: {id_input}) is already taken by {password_found.name} (id: {password_found._id})")
+                    password_found = Student.query.filter_by(
+                        password=password_input).first()
+                    # also making sure the matching password is not the same student
+                    if password_found and password_found._id != id_input:
+                        flash(
+                            f"The password you're trying to change for {name_input} (id: {id_input}) is already taken by {password_found.name} (id: {password_found._id})")
                         return redirect(url_for("teacher"))
 
                 try:
                     rp_input = int(request.form[str_rp])
                 except:
                     # someone put an "e" in the rp input (we don't know how to prevent them from doing it)
-                    flash(f"Please enter a valid number of RP for {name_input} (id: {id_input})")
+                    flash(
+                        f"Please enter a valid number of RP for {name_input} (id: {id_input})")
                     return redirect(url_for("teacher"))
 
-
-                users.append([id_input, name_input, period_input, email_input, password_input, rp_input])
-            
+                users.append([id_input, name_input, period_input,
+                              email_input, password_input, rp_input])
 
             # update the database
             for i in range(len(users)):
@@ -308,7 +315,6 @@ def teacher():
                 found_user.email = users[i][3]
                 found_user.password = users[i][4]
                 found_user.rp = users[i][5]
-
 
                 db.session.commit()
 
@@ -323,7 +329,8 @@ def teacher():
         # user is not logged in -> login page
         flash("You are not logged in!")
         return redirect(url_for("login"))
-    
+
+
 @app.route("/forgotpassword", methods=["GET", "POST"])
 @app.route("/forgot", methods=["GET", "POST"])
 def forgotpassword():
@@ -335,7 +342,8 @@ def forgotpassword():
         user_found = Student.query.filter_by(email=email_in).first()
         if user_found:
             # send the user an email containing their password
-            sendEmail(reciever_email=email_in, user_password=user_found.password, forgot_password=True)
+            sendEmail(reciever_email=email_in,
+                      user_password=user_found.password, forgot_password=True)
             flash("An email containing your password has been sent to you!")
             return redirect(url_for("login"))
         else:
@@ -344,7 +352,7 @@ def forgotpassword():
 
     else:
         return render_template("forgotpassword.html")
-    
+
 # FOR DEVELOPMENT PURPOSES ONLY, DELETE/COMMENT THESE IN PRODUCTION
 
 # route for clearing the table
@@ -372,8 +380,6 @@ def student_view():
     return render_template("student.html", student=Student.query.first())
 
 
-
-
 # run the app
 if __name__ == "__main__":
     with app.app_context():
@@ -382,6 +388,6 @@ if __name__ == "__main__":
         db.drop_all()
         db.create_all()
         # TODO: Comment this loop in production
-        for i in range(3):
-            add_student()
+        # for i in range(3):
+        #     add_student()
     app.run(debug=True)
