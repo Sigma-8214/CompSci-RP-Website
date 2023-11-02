@@ -4,9 +4,11 @@ from flask import Flask, redirect, url_for, request, render_template, session, f
 from flask_sqlalchemy import SQLAlchemy
 
 from send_mail import sendEmail
-from config import secret_key, teacher_password, db_address
+from config import secret_key, teacher_password, db_address, debug, host, port
 
 app = Flask(__name__)
+app.template_folder = '../templates'
+app.static_folder = '../static'
 app.secret_key = secret_key
 
 # settings for sql database
@@ -389,4 +391,4 @@ if __name__ == "__main__":
         # TODO: Comment this loop in production
         # for i in range(3):
         #     add_student()
-    app.run(debug=True)
+    app.run(host=host, port=port, debug=debug)

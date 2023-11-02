@@ -1,0 +1,9 @@
+services:
+  web-server:
+    image: reward-points
+    build: .
+    ports:
+      - "8081:8080"
+    volumes:
+      - "./instance:/reward-points/instance"
+      - "./config.py:/reward-points/src/config.py"
