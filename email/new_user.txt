@@ -1,0 +1,9 @@
+Hi, How are you?
+You're getting this email because you've registered for a Rewards Points account.
+Here's your password! Try not to lose it.
+{user_password}
+Thanks for joining Rewards Points!
+
+The Rewards Points Team,
+Matthas Masiero
+Jaiman Munshi

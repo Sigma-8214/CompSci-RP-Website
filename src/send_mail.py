@@ -2,100 +2,54 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-def sendEmail(reciever_email, user_password, forgot_password):
-    sender_email = 'ridgerewardspoints@gmail.com'
+from config import sender_address, sender_password, sender_server, sender_port
+
+class Message:
+    html = ''
+    text = ''
+
+    def __init__(self, name):
+        self.html = open(f'email/{name}.html', 'r').read()
+        self.text = open(f'email/{name}.txt', 'r').read()
+
+    def format(self, key, value):
+        self.html = self.html.replace(key, value)
+        self.text = self.text.replace(key, value)
+        return self
+
+FORGOT_PASSWORD = Message('forgot_password')
+NEW_USER        = Message('new_user')
+
+def sendEmail(receiver_email: str, subject: str, message: Message):
     msg = MIMEMultipart('alternative')
-    msg['Subject'] = 'Access your Rewards Points Account!'
-    msg['From'] = sender_email
-    msg['To'] = reciever_email
-
-    # Create the plain-text and HTML version of your message
-    if forgot_password:
-        text = f"""
-        Hi, How are you?
-        You're getting this email because you've forggoten your password to your Rewards Points account.
-        Here's your password! Try not to lose it again.
-        {user_password}
-        Thanks for being a Rewards Points member!
-
-        The Rewards Points Team,
-        Matthias Masiero
-        Jaiman Munshi
-        """
-        html = f"""
-        <html>
-
-        <body>
-            <h2>Hi,
-                How are you?<br>
-            </h2>
-            <h3>You're getting this email because you've forggoten your password to your Rewards Points account.<br><br>
-                Here's your password! Try not to lose it again.<br></h3>
-            <h2>{user_password}</h2>
-
-            <h4>Thanks for being a Rewards Points member!
-                <br><br>The Rewards Points Team,</h4>
-            <h3>Matthas Masiero<br>Jaiman Munshi</h3>
-        </body>
-
-        </html>
-        """
-    else:
-        text = f"""
-        Hi, How are you?
-        You're getting this email because you've registered for a Rewards Points account.
-        Here's your password! Try not to lose it.
-        {user_password}
-        Thanks for joining Rewards Points!
-        
-        The Rewards Points Team,
-        Matthas Masiero
-        Jaiman Munshi
-        """
-        html = f"""
-        <html>
-
-        <body>
-            <h2>Hi,
-                How are you?<br>
-            </h2>
-            <h3>You're getting this email because you've registered for a Rewards Points account.<br><br>
-                Here's your password! Try not to lose it.<br></h3>
-            <h2>{user_password}</h2>
-
-            <h4>Thanks for joining Rewards Points!
-                <br><br>The Rewards Points Team,</h4>
-            <h3>Matthas Masiero<br>Jaiman Munshi</h3>
-        </body>
-
-        </html>
-        """
+    msg['Subject'] = subject
+    msg['From'] = sender_address
+    msg['To'] = receiver_email
 
     # Turn these into plain/html MIMEText objects
-    part1 = MIMEText(text, "plain")
-    part2 = MIMEText(html, "html")
+    part1 = MIMEText(message.text, "plain")
+    part2 = MIMEText(message.html, "html")
 
     # Add HTML/plain-text parts to MIMEMultipart message
     # The email client will try to render the last part first
     msg.attach(part1)
     msg.attach(part2)
 
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server = smtplib.SMTP_SSL(sender_server, sender_port)
     try:
-        server.login(sender_email, 'zteuscrvkhxtlbbb')
-        print('logged in to Gmail services')
+        server.login(sender_address, sender_password)
     except:
-        print('failed to login to Gmail services')
+        print('[!] Failed to login to mail server')
 
     try:
-        server.sendmail(sender_email,
-                        reciever_email,
-                        msg.as_string()
-                        )
-        print('Email sent!')
+        server.sendmail(sender_address, receiver_email, msg.as_string())
     except:
-        print('Email failed to send')
+        print('[!] Failed to send email')
 
     server.quit()
 
-# sendEmail(reciever_email='jaimancoding@gmail.com', user_password='123456')
+def sendNewUserEmail(receiver_email: str, user_password: str):
+    sendEmail(receiver_email, 'Welcome to Rewards Points!', NEW_USER.format('{user_password}', user_password))
+
+def sendForgotPasswordEmail(receiver_email: str, user_password: str):
+    sendEmail(receiver_email, 'Your Rewards Points Password', FORGOT_PASSWORD.format('{user_password}', user_password))

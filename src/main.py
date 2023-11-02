@@ -3,7 +3,7 @@ import random
 from flask import Flask, redirect, url_for, request, render_template, session, flash
 from flask_sqlalchemy import SQLAlchemy
 
-from send_mail import sendEmail
+from send_mail import sendNewUserEmail, sendForgotPasswordEmail
 from config import secret_key, teacher_password, db_address, debug, host, port
 
 app = Flask(__name__)
@@ -17,7 +17,6 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # create the database object
 db = SQLAlchemy(app)
-
 
 class Student(db.Model):
     # create columns
@@ -160,8 +159,7 @@ def register():
             print('added to database')
 
             # send the new student's password to their email
-            sendEmail(reciever_email=email_in,
-                      user_password=new_student.password, forgot_password=False)
+            sendNewUserEmail(email_in, new_student.password)
 
             flash("Registered! Your password has been sent to your school email.")
             print('redirecting to login page')
@@ -343,8 +341,7 @@ def forgotpassword():
         user_found = Student.query.filter_by(email=email_in).first()
         if user_found:
             # send the user an email containing their password
-            sendEmail(reciever_email=email_in,
-                      user_password=user_found.password, forgot_password=True)
+            sendForgotPasswordEmail(email_in, user_found.password)
             flash("An email containing your password has been sent to you!")
             return redirect(url_for("login"))
         else:

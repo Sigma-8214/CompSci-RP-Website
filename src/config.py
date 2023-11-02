@@ -1,11 +1,14 @@
 ## [ THESE ARE DEBUG VALUES ] ##
 
-# Password used to access the teacher view
 teacher_password = '123456'
-# Key used to encrypt cookies
 secret_key = b'&P^B3B4>d;4xs2:n.hbz'
-# Path to the database
 db_address = 'sqlite:///users.db'
+
+## [ EMAIL ] ##
+sender_address = 'ridgerewardspoints@gmail.com'
+sender_password = 'zteuscrvkhxtlbbb'
+sender_server = 'smtp.gmail.com'
+sender_port = 465
 
 ## [SERVER] ##
 host = 'localhost'
