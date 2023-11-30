@@ -1,60 +1,11 @@
 import random
-
 from flask import Flask, redirect, url_for, request, render_template, session, flash
 from flask_sqlalchemy import SQLAlchemy
 
 from send_mail import sendNewUserEmail, sendForgotPasswordEmail
-from config import secret_key, teacher_password, db_address, debug, host, port
-
-app = Flask(__name__)
-app.template_folder = "../templates"
-app.static_folder = "../static"
-app.secret_key = secret_key
-
-# settings for sql database
-app.config["SQLALCHEMY_DATABASE_URI"] = db_address
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-# create the database object
-db = SQLAlchemy(app)
-
-
-class Student(db.Model):
-    # create columns
-    _id = db.Column("id", db.Integer, primary_key=True)
-    name = db.Column(db.String(100))
-    period = db.Column(db.Integer())
-    email = db.Column(db.String(100))
-    password = db.Column(db.String(6))
-    rp = db.Column(db.Integer())
-
-    def __init__(self, name, period, email):
-        self.name = name
-        self.period = period
-        self.email = email
-
-        # password is initialized to a random 6-digit number
-        random_password = random.randint(000000, 999999)
-
-        # make sure the password is unique
-        # get all the passwords from the database
-        passwords = Student.query.with_entities(Student.password).all()
-        # check if the random password is already in the database
-        while str(random_password) in passwords:
-            random_password = random.randint(000000, 999999)
-
-        # add leading zeroes to the password if it's less than 6 digits
-        random_password = str(random_password)
-        while len(random_password) < 6:
-            random_password = "0" + random_password
-
-        # set the password
-        self.password = random_password
-
-        self.rp = 0
-
-    def __repr__(self):
-        return f"Name ({self.name}), Password ({self.password}), Points ({self.rp}), Email ({self.email}), Period ({self.period})\n"
+from config import teacher_password, debug, host, port
+from database import Student
+from app import app, db
 
 
 # TODO: add a show password button to the password column in teacher view
@@ -73,48 +24,48 @@ def login():
     elif "teacher" in session:
         # redirect to the teacher view
         flash("You are already logged in!")
+
         return redirect(url_for("teacher"))
+    # user is not logged in
+
+    # check if the user is trying to log in
+    if request.method != "POST":
+        # user is not trying to log in -> display the login page
+        return render_template("login.html")
+
+    # get the form data
+    password = request.form["password"]
+
+    # prompt password again if it's not a number
+    if not password.isdigit():
+        flash("Please enter a number!")
+        return redirect(url_for("login"))
+
+    # prompt password again if it's not 6 digits
+    if len(password) != 6:
+        flash("Please enter a 6-digit number!")
+        return redirect(url_for("login"))
+
+    # check if the teacher is trying to log in
+    if password == teacher_password:
+        # log the teacher in
+        session["teacher"] = "teacher"
+        flash("Logged in!")
+        return redirect(url_for("teacher"))
+
+    # if password found, log the user in
+    found_user = Student.query.filter_by(password=password).first()
+    if found_user:
+        # log the student in
+        print("logging in student")
+        session["student"] = found_user.name
+        # flash("Logged in!")
+        return redirect(url_for("student"))
+
+    # if password not found, display an error message
     else:
-        # user is not logged in
-
-        # check if the user is trying to log in
-        if request.method == "POST":
-            # get the form data
-            password = request.form["password"]
-
-            # prompt password again if it's not a number
-            if not password.isdigit():
-                flash("Please enter a number!")
-                return redirect(url_for("login"))
-
-            # prompt password again if it's not 6 digits
-            if len(password) != 6:
-                flash("Please enter a 6-digit number!")
-                return redirect(url_for("login"))
-
-            # check if the teacher is trying to log in
-            if password == teacher_password:
-                # log the teacher in
-                session["teacher"] = "teacher"
-                flash("Logged in!")
-                return redirect(url_for("teacher"))
-
-            # if password found, log the user in
-            found_user = Student.query.filter_by(password=password).first()
-            if found_user:
-                # log the student in
-                print("logging in student")
-                session["student"] = found_user.name
-                # flash("Logged in!")
-                return redirect(url_for("student"))
-
-            # if password not found, display an error message
-            else:
-                flash("Password not found!")
-                return redirect(url_for("login"))
-        else:
-            # user is not trying to log in -> display the login page
-            return render_template("login.html")
+        flash("Password not found!")
+        return redirect(url_for("login"))
 
 
 # route for the register page
@@ -133,45 +84,43 @@ def register():
         flash("You are already logged in!")
         return redirect(url_for("teacher"))
 
-    else:
-        # user is not logged in
+    # user is not logged in
 
-        # check if the user is trying to register
-        if request.method == "POST":
-            session.permanent = True
+    # check if the user is trying to register
+    if request.method != "POST":
+        # user is not trying to register
+        # display the register page
+        return render_template("register.html")
 
-            # user is trying to register
+    session.permanent = True
 
-            # get the form data
-            name_in = request.form["name"]
-            period_in = request.form["period"]
-            email_in = request.form["email"].lower()
+    # user is trying to register
 
-            # make sure the email does not already exist in the database
-            emails_found = Student.query.filter_by(email=email_in).first()
-            if emails_found:
-                flash("Email already exists!")
-                return redirect(url_for("register"))
+    # get the form data
+    name_in = request.form["name"]
+    period_in = request.form["period"]
+    email_in = request.form["email"].lower()
 
-            # create a new student object
-            new_student = Student(name_in, int(period_in), email_in)
+    # make sure the email does not already exist in the database
+    emails_found = Student.query.filter_by(email=email_in).first()
+    if emails_found:
+        flash("Email already exists!")
+        return redirect(url_for("register"))
 
-            # add the new student to the database
-            db.session.add(new_student)
-            db.session.commit()
-            print("added to database")
+    # create a new student object
+    new_student = Student(name_in, int(period_in), email_in)
 
-            # send the new student's password to their email
-            sendNewUserEmail(email_in, new_student.password)
+    # add the new student to the database
+    db.session.add(new_student)
+    db.session.commit()
+    print("added to database")
 
-            flash("Registered! Your password has been sent to your school email.")
-            print("redirecting to login page")
-            return redirect(url_for("login"))
+    # send the new student's password to their email
+    sendNewUserEmail(email_in, new_student.password)
 
-        else:
-            # user is not trying to register
-            # display the register page
-            return render_template("register.html")
+    flash("Registered! Your password has been sent to your school email.")
+    print("redirecting to login page")
+    return redirect(url_for("login"))
 
 
 @app.route("/logout")
@@ -183,23 +132,21 @@ def logout():
         flash("Logged out!")
         return redirect(url_for("login"))
 
-    elif "teacher" in session:
+    if "teacher" in session:
         # log the teacher out
         session.pop("teacher", None)
         flash("Logged out!")
         return redirect(url_for("login"))
 
-    else:
-        # user is not logged in
-        flash("You are not logged in!")
-        return redirect(url_for("login"))
+    # user is not logged in
+    flash("You are not logged in!")
+    return redirect(url_for("login"))
 
 
 # route for the student view
 @app.route("/student")
 @app.route("/s")
 def student():
-    print("student view")
     # first check if the student is logged in
     if "student" in session:
         # if logged in, display the student's info
@@ -210,10 +157,9 @@ def student():
             random_tail_length=random.randint(1, 10),
         )
 
-    else:
-        # user is not logged in -> login page
-        flash("You are not logged in!")
-        return redirect(url_for("login"))
+    # user is not logged in -> login page
+    flash("You are not logged in!")
+    return redirect(url_for("login"))
 
 
 # route for the teacher view
@@ -361,23 +307,22 @@ def teacher():
 @app.route("/forgotpassword", methods=["GET", "POST"])
 @app.route("/forgot", methods=["GET", "POST"])
 def forgotpassword():
-    if request.method == "POST":
-        # get the email from the form
-        email_in = request.form["email"]
-
-        # make sure the email exists in the database
-        user_found = Student.query.filter_by(email=email_in).first()
-        if user_found:
-            # send the user an email containing their password
-            sendForgotPasswordEmail(email_in, user_found.password)
-            flash("An email containing your password has been sent to you!")
-            return redirect(url_for("login"))
-        else:
-            flash("The email you entered is not registered!")
-            return redirect(url_for("forgotpassword"))
-
-    else:
+    if request.method != "POST":
         return render_template("forgotpassword.html")
+
+    # get the email from the form
+    email_in = request.form["email"]
+
+    # make sure the email exists in the database
+    user_found = Student.query.filter_by(email=email_in).first()
+    if user_found:
+        # send the user an email containing their password
+        sendForgotPasswordEmail(email_in, user_found.password)
+        flash("An email containing your password has been sent to you!")
+        return redirect(url_for("login"))
+    else:
+        flash("The email you entered is not registered!")
+        return redirect(url_for("forgotpassword"))
 
 
 @app.route("/deletestudent", methods=["POST", "GET"])
@@ -401,6 +346,9 @@ def deletestudent():
 # route for adding a student to the table
 @app.route("/addstudent", methods=["POST", "GET"])
 def addstudent():
+    if "student" in session:
+        return redirect(url_for("student"))
+
     if "teacher" in session:
         # get the form data
         name_in = request.form["name"]
@@ -428,23 +376,15 @@ def addstudent():
 
         flash("Added new student.")
         return redirect(url_for("teacher"))
-    elif "student" in session:
-        return redirect(url_for("student"))
-    else:
-        # user is not logged in -> login page
-        flash("You are not logged in!")
-        return redirect(url_for("login"))
 
+    # user is not logged in -> login page
+    flash("You are not logged in!")
+    return redirect(url_for("login"))
 
-# route to see the student view without logging in
-@app.route("/student-view")
-def student_view():
-    return render_template("student.html", student=Student.query.first())
 
 if __name__ == "__main__":
     with app.app_context():
-        print("Creating Database...")
-        db.drop_all()
+        # db.drop_all()
         db.create_all()
 
         if debug:
