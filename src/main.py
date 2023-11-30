@@ -18,7 +18,6 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # create the database object
 db = SQLAlchemy(app)
 
-
 class Student(db.Model):
     # create columns
     _id = db.Column("id", db.Integer, primary_key=True)
