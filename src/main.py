@@ -18,6 +18,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 # create the database object
 db = SQLAlchemy(app)
 
+
 class Student(db.Model):
     # create columns
     _id = db.Column("id", db.Integer, primary_key=True)
@@ -423,11 +424,7 @@ def addstudent():
 
         if send_email_toggle_in:
             # send the new student's password to their email
-            sendEmail(
-                reciever_email=email_in,
-                user_password=new_student.password,
-                forgot_password=False,
-            )
+            sendNewUserEmail(email_in, new_student.password)
 
         flash("Added new student.")
         return redirect(url_for("teacher"))
@@ -444,26 +441,16 @@ def addstudent():
 def student_view():
     return render_template("student.html", student=Student.query.first())
 
-
-# FOR DEVELOPMENT PURPOSES ONLY
-# route for clearing the table
-@app.route("/clear-table")
-def clear_table():
-    # clear the database
-    db.drop_all()
-    return "Table cleared!"
-
-
 if __name__ == "__main__":
     with app.app_context():
+        print("Creating Database...")
+        db.drop_all()
+        db.create_all()
+
         if debug:
             for i in range(3):
                 new_student = Student("name", 7, "123@mail.com")
                 db.session.add(new_student)
                 db.session.commit()
-        else:
-            print("Creating Database...")
-            db.drop_all()
-            db.create_all()
 
     app.run(host=host, port=port, debug=debug)
